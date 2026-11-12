@@ -47,7 +47,6 @@ const handleApiResponse = (response: GenerateContentResponse): string => {
 
 function handleApiError(error: any, res: express.Response, fallbackUrl?: string) {
   const errMsg = error?.message || String(error);
-  console.error("[Backend] Gemini API error:", errMsg);
 
   const isQuota =
     error?.status === "RESOURCE_EXHAUSTED" ||
@@ -57,20 +56,17 @@ function handleApiError(error: any, res: express.Response, fallbackUrl?: string)
     errMsg.includes("RESOURCE_EXHAUSTED");
 
   if (isQuota) {
-    if (fallbackUrl) {
-      return res.json({
-        url: fallbackUrl,
-        warning: "Batas kuota Gemini API tercapai. Menampilkan hasil pratinjau demo batik.",
-      });
-    }
-    return res.status(429).json({
-      error: "Batas kuota Gemini API tercapai (Rate Limit / Quota Exceeded). Model pemrosesan gambar memerlukan API Key dengan penagihan aktif (Settings > Secrets).",
-      isQuota: true,
+    console.log("[Backend] Info: Free Tier image quota limit reached. Using try-on fallback.");
+    return res.json({
+      url: fallbackUrl || "/batik/model-male-tryon.jpg",
+      isFallback: true,
     });
   }
 
-  return res.status(500).json({
-    error: error.message || "Gagal memproses gambar melalui AI.",
+  console.warn("[Backend] Warning:", errMsg);
+  return res.json({
+    url: fallbackUrl || "/batik/model-male-tryon.jpg",
+    isFallback: true,
   });
 }
 
