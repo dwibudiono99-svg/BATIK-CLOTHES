@@ -1,0 +1,9 @@
+{
+  "name": "BatikFit — Virtual Batik Try-On",
+  "description": "Coba aneka busana batik Indonesia secara virtual dengan aturan foto bebas (selfie, setengah badan, outdoor, maupun santai). Pasang kemeja batik pria, dress batik, kebaya, dan outer modern bertenaga AI Gemini.",
+  "requestFramePermissions": [],
+  "prompt": "",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
