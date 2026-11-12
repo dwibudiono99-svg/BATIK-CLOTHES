@@ -16,8 +16,19 @@ export interface WardrobeItem {
   color?: string;
 }
 
+export interface GarmentTransform {
+  scale: number;
+  x: number;
+  y: number;
+  blendMode: 'normal' | 'multiply' | 'soft-light';
+  opacity: number;
+}
+
 export interface OutfitLayer {
   garment: WardrobeItem | null; // null represents the base model layer
   poseImages: Record<string, string>; // Maps pose instruction to image URL
+  transform?: GarmentTransform;
 }
+
+
 

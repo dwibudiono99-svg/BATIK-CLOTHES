@@ -11,7 +11,7 @@ import Canvas from './components/Canvas';
 import WardrobePanel from './components/WardrobeModal';
 import OutfitStack from './components/OutfitStack';
 import { generateVirtualTryOnImage, generatePoseVariation } from './services/geminiService';
-import { OutfitLayer, WardrobeItem } from './types';
+import { OutfitLayer, WardrobeItem, GarmentTransform } from './types';
 import { ChevronDownIcon, ChevronUpIcon } from './components/icons';
 import { defaultWardrobe } from './wardrobe';
 import Footer from './components/Footer';
@@ -60,6 +60,15 @@ const App: React.FC = () => {
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>(defaultWardrobe);
   const isMobile = useMediaQuery('(max-width: 767px)');
 
+  // Dynamic garment tailoring transform (scale, position, blend)
+  const [garmentTransform, setGarmentTransform] = useState<GarmentTransform>({
+    scale: 1.04,
+    x: 0,
+    y: 33, // Default position under chin / hijab for bust-up photos
+    blendMode: 'normal',
+    opacity: 1.0,
+  });
+
   const activeOutfitLayers = useMemo(() => 
     outfitHistory.slice(0, currentOutfitIndex + 1), 
     [outfitHistory, currentOutfitIndex]
@@ -69,6 +78,10 @@ const App: React.FC = () => {
     activeOutfitLayers.map(layer => layer.garment?.id).filter(Boolean) as string[], 
     [activeOutfitLayers]
   );
+
+  const activeGarment = useMemo(() => {
+    return activeOutfitLayers[currentOutfitIndex]?.garment ?? null;
+  }, [activeOutfitLayers, currentOutfitIndex]);
   
   const displayImageUrl = useMemo(() => {
     if (outfitHistory.length === 0) return modelImageUrl;
@@ -92,6 +105,26 @@ const App: React.FC = () => {
       poseImages: { [POSE_INSTRUCTIONS[0]]: url }
     }]);
     setCurrentOutfitIndex(0);
+
+    // If full-body demo model
+    if (url.includes('model-male') || url.includes('model-female')) {
+      setGarmentTransform({
+        scale: 0.74,
+        x: 0,
+        y: 22,
+        blendMode: 'normal',
+        opacity: 1.0,
+      });
+    } else {
+      // Custom user photo (selfie, bust-up, half-body - like image_d51b1d7e.png)
+      setGarmentTransform({
+        scale: 1.05,
+        x: 0,
+        y: 33,
+        blendMode: 'normal',
+        opacity: 1.0,
+      });
+    }
   };
 
   const handleStartOver = () => {
@@ -107,9 +140,9 @@ const App: React.FC = () => {
   };
 
   const handleGarmentSelect = useCallback(async (garmentFile: File, garmentInfo: WardrobeItem) => {
-    if (!displayImageUrl || isLoading) return;
+    if (!modelImageUrl || isLoading) return;
 
-    // Caching: Check if we are re-applying a previously generated layer
+    // Caching check
     const nextLayer = outfitHistory[currentOutfitIndex + 1];
     if (nextLayer && nextLayer.garment?.id === garmentInfo.id) {
       setCurrentOutfitIndex(prev => prev + 1);
@@ -119,15 +152,16 @@ const App: React.FC = () => {
 
     setError(null);
     setIsLoading(true);
-    setLoadingMessage(`Menjahit ${garmentInfo.name}...`);
+    setLoadingMessage(`Menyesuaikan ${garmentInfo.name}...`);
 
     try {
-      const newImageUrl = await generateVirtualTryOnImage(displayImageUrl, garmentFile);
+      const newImageUrl = await generateVirtualTryOnImage(modelImageUrl, garmentFile, garmentTransform);
       const currentPoseInstruction = POSE_INSTRUCTIONS[currentPoseIndex];
       
       const newLayer: OutfitLayer = { 
         garment: garmentInfo, 
-        poseImages: { [currentPoseInstruction]: newImageUrl } 
+        poseImages: { [currentPoseInstruction]: newImageUrl },
+        transform: garmentTransform,
       };
 
       setOutfitHistory(prevHistory => {
@@ -148,7 +182,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [displayImageUrl, isLoading, currentPoseIndex, outfitHistory, currentOutfitIndex]);
+  }, [modelImageUrl, isLoading, currentPoseIndex, outfitHistory, currentOutfitIndex, garmentTransform]);
 
   const handleRemoveLastGarment = () => {
     if (currentOutfitIndex > 0) {
@@ -233,6 +267,10 @@ const App: React.FC = () => {
               <div className="w-full h-full flex-grow flex items-center justify-center bg-stone-100/70 p-2 sm:p-4 relative">
                 <Canvas 
                   displayImageUrl={displayImageUrl}
+                  baseImageUrl={modelImageUrl}
+                  activeGarment={activeGarment}
+                  transform={garmentTransform}
+                  onTransformChange={setGarmentTransform}
                   onStartOver={handleStartOver}
                   isLoading={isLoading}
                   loadingMessage={loadingMessage}
